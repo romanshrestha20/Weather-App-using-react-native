@@ -9,11 +9,12 @@ import {
   Image,
   ActivityIndicator,
   Modal,
-  TouchableOpacity, // Import TouchableOpacity
+  TouchableOpacity,
 } from "react-native";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+import useThemeStore from "./themeStore";
 // API Key
 const API_KEY = "44c1f81da55eda6af9ab0d0cbd2bfe31";
 
@@ -47,7 +48,10 @@ export default function App() {
     try {
       const updatedSearches = [city, ...recentSearches.slice(0, 4)]; // Keep only the last 5 searches
       setRecentSearches(updatedSearches);
-      await AsyncStorage.setItem("recentSearches", JSON.stringify(updatedSearches));
+      await AsyncStorage.setItem(
+        "recentSearches",
+        JSON.stringify(updatedSearches)
+      );
     } catch (error) {
       console.error("Failed to save recent searches:", error);
     }
@@ -55,6 +59,10 @@ export default function App() {
 
   // Function to fetch weather data from the API
   const getWeather = async () => {
+    if (!city.trim()) {
+      setError(new Error("City name cannot be empty"));
+      return;
+    }
     try {
       setLoading(true);
       const { data } = await axios.get(
@@ -67,14 +75,7 @@ export default function App() {
       if (error.response) {
         // The request was made and the server responded with a status code
         setError(new Error(error.response.data.message));
-      } else if (error.request) {
-        // The request was made but no response was received
-        setError(new Error("Network Error"));
-      }
-        // validiate input if city is empty
-     
-     
-      else {
+      } else {
         // Something happened in setting up the request
         setError(error);
       }
@@ -92,6 +93,13 @@ export default function App() {
     setError(null);
   };
 
+  // theme management
+  const { theme, toggleTheme } = useThemeStore();
+  const isDarkMode = theme === "dark";
+
+  // Dynamic styles based on themes
+  const styles = getStyles(isDarkMode);
+
   return (
     <View style={styles.container}>
       {loading && <ActivityIndicator size="large" color="#0000ff" />}
@@ -99,16 +107,16 @@ export default function App() {
       {/* App Title */}
       <Text style={styles.title}>Weather App</Text>
       <Text style={styles.subtitle}>Enter a city name to get the weather</Text>
-
+      {/* Theme Toggle Button */}
       {/* City Input */}
       <TextInput
         style={styles.textInput}
         placeholder="City Name"
+        placeholderTextColor={isDarkMode ? "#999" : "#666"}
         value={city}
         onChangeText={setCity}
         onSubmitEditing={getWeather}
         returnKeyType="search" // Change the return key to "Search"
-
       />
 
       {/* Buttons */}
@@ -118,6 +126,10 @@ export default function App() {
         <Button
           onPress={() => setShowRecentSearches(true)}
           title="Recent Searches"
+        />
+        <Button
+          onPress={toggleTheme}
+          title={`Switch to ${theme === "light" ? "Dark" : "Light"} Theme`}
         />
       </View>
 
@@ -130,8 +142,9 @@ export default function App() {
           <Text style={styles.cityText}>City: {weather.name}</Text>
           <Text style={styles.temperatureText}>{weather.main.temp}°C</Text>
           <Text style={styles.conditionText}>
-            Condition: {weather.weather[0].main}
+            Country: {weather.sys.country}
           </Text>
+
           <Text style={styles.descriptionText}>
             Description: {weather.weather[0].description}
           </Text>
@@ -174,118 +187,121 @@ export default function App() {
               </TouchableOpacity>
             )}
           />
-          <Button
-            title="Close"
-            onPress={() => setShowRecentSearches(false)}
-          />
+          <Button title="Close" onPress={() => setShowRecentSearches(false)} />
         </View>
       </Modal>
     </View>
   );
 }
 
-// Styles
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f5f5f5",
-    alignItems: "center",
-    justifyContent: "flex-start",
-    padding: 20,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 10,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: "#666",
-    marginBottom: 20,
-  },
-  textInput: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 5,
-    width: "100%",
-    padding: 10,
-    marginBottom: 20,
-    backgroundColor: "#fff",
-  },
-  buttonContainer: {
-    flexDirection: "row",
-    justifyContent: "space-evenly",
-    width: "100%",
-    marginBottom: 20,
-  },
-  errorText: {
-    color: "red",
-    fontSize: 16,
-    marginBottom: 20,
-  },
-  weatherContainer: {
-    alignItems: "center",
-    backgroundColor: "#fff",
-    padding: 20,
-    borderRadius: 10,
-    width: "100%",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 3,
-  },
-  cityText: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 10,
-  },
-  temperatureText: {
-    fontSize: 48,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 10,
-  },
-  conditionText: {
-    fontSize: 18,
-    color: "#666",
-    marginBottom: 10,
-  },
-  descriptionText: {
-    fontSize: 16,
-    color: "#666",
-    marginBottom: 10,
-  },
-  weatherIcon: {
-    width: 50,
-    height: 50,
-    marginBottom: 10,
-  },
-  detailText: {
-    fontSize: 16,
-    color: "#666",
-    marginBottom: 5,
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: "#fff",
-    padding: 20,
-  },
-  modalTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 20,
-  },
-  recentSearchItem: {
-    padding: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#ccc",
-  },
-  recentSearchText: {
-    fontSize: 16,
-    color: "#333",
-  },
-});
+// Dynamic styles based on themes
+const getStyles = (isDarkMode) => {
+  return StyleSheet.create({
+    container: {
+      // add top padding to avoid the status bar
+      paddingTop: 100,
+      flex: 1,
+      backgroundColor: isDarkMode ? "#333" : "#fff",
+      alignItems: "center",
+      justifyContent: "flex-start",
+      padding: 20,
+    },
+
+    title: {
+      fontSize: 28,
+      fontWeight: "bold",
+      color: isDarkMode ? "#ff" : "#333",
+      marginBottom: 10,
+    },
+    subtitle: {
+      fontSize: 16,
+      color: isDarkMode ? "#ccc" : "#666",
+      marginBottom: 20,
+    },
+    textInput: {
+      borderWidth: 1,
+      borderColor: "#ccc",
+      borderRadius: 5,
+      width: "60%",
+      padding: 10,
+      marginBottom: 20,
+      backgroundColor: isDarkMode ? "#444" : "#fff",
+      color: isDarkMode ? "#fff" : "#000",
+    },
+    buttonContainer: {
+      flexDirection: "row",
+      justifyContent: "space-evenly",
+      width: "60%",
+      marginBottom: 20,
+    },
+    errorText: {
+      color: "red",
+      fontSize: 16,
+      marginBottom: 20,
+    },
+    weatherContainer: {
+      alignItems: "center",
+      backgroundColor: isDarkMode ? "#444" : "#fff",
+      padding: 20,
+      borderRadius: 10,
+      width: "60%",
+      shadowColor: "#010",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 5,
+      elevation: 3,
+    },
+    cityText: {
+      fontSize: 24,
+      fontWeight: "bold",
+      color: isDarkMode ? "#fff" : "#333",
+      marginBottom: 10,
+    },
+    temperatureText: {
+      fontSize: 48,
+      fontWeight: "bold",
+      color: isDarkMode ? "#fff" : "#333",
+      marginBottom: 10,
+    },
+    conditionText: {
+      fontSize: 18,
+      color: isDarkMode ? "#ccc" : "#666",
+      marginBottom: 10,
+    },
+    descriptionText: {
+      fontSize: 16,
+      color: isDarkMode ? "#ccc" : "#666",
+      marginBottom: 10,
+    },
+    weatherIcon: {
+      width: 50,
+      height: 50,
+      marginBottom: 10,
+    },
+    detailText: {
+      fontSize: 16,
+      color: isDarkMode ? "#ccc" : "#666",
+      marginBottom: 5,
+    },
+    modalContainer: {
+      flex: 1,
+      backgroundColor: isDarkMode ? "#333" : "#fff",
+      padding: 20,
+    },
+    modalTitle: {
+      fontSize: 24,
+      fontWeight: "bold",
+      color: isDarkMode ? "#fff" : "#333",
+      marginBottom: 20,
+    },
+    recentSearchItem: {
+      padding: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: isDarkMode ? "#666" : "#ccc",
+    },
+    recentSearchText: {
+      fontSize: 16,
+      color: isDarkMode ? "#fff" : "#333",
+    },
+  });
+};
